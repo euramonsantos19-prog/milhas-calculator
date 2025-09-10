@@ -3,7 +3,7 @@
 /**
  * Cria e adiciona uma nova linha à tabela.
  */
-function addRow(miles = '', costPerThousand = '') {
+function addRow(miles = '', totalCost = '') {
   const tableBody = document.getElementById('tableBody');
   const row = document.createElement('tr');
   row.className = 'border-t border-gray-300';
@@ -21,20 +21,20 @@ function addRow(miles = '', costPerThousand = '') {
   milesCell.appendChild(milesInput);
   row.appendChild(milesCell);
 
-  // Célula de custo por mil
+  // Célula de total gasto
   const costCell = document.createElement('td');
   costCell.className = 'px-2 py-1 border-r border-gray-300';
   const costInput = document.createElement('input');
   costInput.type = 'number';
   costInput.min = '0';
   costInput.step = '0.01';
-  costInput.value = costPerThousand;
+  costInput.value = totalCost;
   costInput.className = 'w-full px-1 py-1 border rounded';
   costInput.addEventListener('input', updateTotals);
   costCell.appendChild(costInput);
   row.appendChild(costCell);
 
-  // Célula de custo total
+  // Célula de custo por 1.000
   const totalCell = document.createElement('td');
   totalCell.className = 'px-2 py-1';
   totalCell.textContent = '0,00';
@@ -50,23 +50,22 @@ function addRow(miles = '', costPerThousand = '') {
 function updateTotals() {
   const rows = document.querySelectorAll('#tableBody tr');
   let totalMiles = 0;
-  let totalCost = 0;
+  let totalSpent = 0;
 
   rows.forEach(row => {
     const inputs = row.querySelectorAll('input');
     const miles = parseFloat(inputs[0].value) || 0;
-    const costPerThousand = parseFloat(inputs[1].value.replace(',', '.')) || 0;
-    const costTotal = (miles / 1000) * costPerThousand;
+    const totalCostValue = parseFloat(inputs[1].value.replace(',', '.')) || 0;
+    const costPerThousand = miles === 0 ? 0 : (totalCostValue / miles) * 1000;
     totalMiles += miles;
-    totalCost += costTotal;
-    // Atualiza a célula de custo total com formato brasileiro
+    totalSpent += totalCostValue;
     const totalCell = row.querySelector('td:last-child');
-    totalCell.textContent = costTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    totalCell.textContent = costPerThousand.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   });
 
   document.getElementById('totalMiles').textContent = totalMiles.toLocaleString('pt-BR');
-  document.getElementById('totalCost').textContent = totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const avgCost = totalMiles === 0 ? 0 : (totalCost / totalMiles) * 1000;
+  document.getElementById('totalCost').textContent = totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const avgCost = totalMiles === 0 ? 0 : (totalSpent / totalMiles) * 1000;
   document.getElementById('avgCost').textContent = avgCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
@@ -86,12 +85,12 @@ function fillExample() {
   clearRows();
   // Exemplo com quatro contas
   const examples = [
-    { miles: 216000, cost: 12.13 },
-    { miles: 196000, cost: 12.76 },
-    { miles: 196000, cost: 12.76 },
-    { miles: 654000, cost: 13.69 }
+    { miles: 216000, total: 2620.08 },
+    { miles: 196000, total: 2500.96 },
+    { miles: 196000, total: 2500.96 },
+    { miles: 654000, total: 8953.26 }
   ];
-  examples.forEach(item => addRow(item.miles, item.cost));
+  examples.forEach(item => addRow(item.miles, item.total));
 }
 
 /**
@@ -99,23 +98,22 @@ function fillExample() {
  */
 function exportCsv() {
   const rows = document.querySelectorAll('#tableBody tr');
-  let csvContent = 'Milhas,Custo por 1.000 (R$),Custo total (R$)\n';
+  let csvContent = 'Milhas,Total gasto (R$),Custo por 1.000 (R$)\n';
   let totalMilesCsv = 0;
-  let totalCostCsv = 0;
+  let totalSpentCsv = 0;
   rows.forEach(row => {
     const inputs = row.querySelectorAll('input');
     const miles = parseFloat(inputs[0].value) || 0;
-    const costPerThousand = parseFloat(inputs[1].value) || 0;
-    // Custo total já foi calculado e formatado na célula final, porém recuperamos e convertemos para número
-    const costTotalStr = row.querySelector('td:last-child').textContent;
-    const costTotal = parseFloat(costTotalStr.replace(/\./g, '').replace(',', '.')) || 0;
-    csvContent += `${miles},${costPerThousand.toFixed(2)},${costTotal.toFixed(2)}\n`;
+    const totalCostValue = parseFloat(inputs[1].value.replace(',', '.')) || 0;
+    const costPerThousand = miles === 0 ? 0 : (totalCostValue / miles) * 1000;
+    csvContent += `${miles},${totalCostValue.toFixed(2)},${costPerThousand.toFixed(2)}\n`;
     totalMilesCsv += miles;
-    totalCostCsv += costTotal;
+    totalSpentCsv += totalCostValue;
   });
   // Linha de totais
-  csvContent += `Total,${totalMilesCsv},${totalCostCsv.toFixed(2)}\n`;
-  // Gera e inicia o download
+  csvContent += `Total,${totalMilesCsv.toFixed(0)},${totalSpentCsv.toFixed(2)}\n`;
+  const avgCostCsv = totalMilesCsv === 0 ? 0 : (totalSpentCsv / totalMilesCsv) * 1000;
+  csvContent += `Custo médio por 1.000,,${avgCostCsv.toFixed(2)}\n`;
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
